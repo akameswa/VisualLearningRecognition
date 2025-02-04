@@ -65,12 +65,26 @@ class VOCDataset(Dataset):
             # Loop through the `tree` to find all objects in the image
             #######################################################################
 
+            root = tree.getroot()
+
             #  The class vector should be a 20-dimensional vector with class[i] = 1 if an object of class i is present in the image and 0 otherwise
             class_vec = torch.zeros(20)
+
+            for child in root.iter('object'):
+                object_name = child.find('name').text
+                index = self.get_class_index(object_name)
+                class_vec[index] = 1
 
             # The weight vector should be a 20-dimensional vector with weight[i] = 0 iff an object of class i has the `difficult` attribute set to 1 in the XML file and 1 otherwise
             # The difficult attribute specifies whether a class is ambiguous and by setting its weight to zero it does not contribute to the loss during training 
             weight_vec = torch.ones(20)
+
+            for child in root.iter('object'):
+                difficult = child.find('difficult').text
+                if difficult == '1':
+                    object_name = child.find('name').text
+                    index = self.get_class_index(object_name)
+                    weight_vec[index] = 0
 
             ######################################################################
             #                            END OF YOUR CODE                        #
@@ -92,7 +106,12 @@ class VOCDataset(Dataset):
         # change and you will have to write the correct value of `flat_dim`
         # in line 46 in simple_cnn.py
         ######################################################################
-        pass
+        augmentations = [
+            transforms.CenterCrop(size=(224, 224)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(degrees=90),
+        ]
+        return augmentations
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
