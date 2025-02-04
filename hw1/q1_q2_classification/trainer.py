@@ -54,7 +54,9 @@ def train(args, model, optimizer, scheduler=None, model_name='model'):
             #   - `output`: Computed loss, a single floating point number
             ##################################################################
             loss = 0
-            ##################################################################
+            # https://pytorch.org/docs/stable/generated/torch.nn.BCELoss.html#torch.nn.BCELoss
+            sigmoid_out = 1/(1+torch.exp(-output))
+            loss = torch.sum(-wgt * (target * torch.log(sigmoid_out + 1e-12) + (1 - target) * torch.log(1 - sigmoid_out + 1e-12))) / output.numel()
             #                          END OF YOUR CODE                      #
             ##################################################################
             
