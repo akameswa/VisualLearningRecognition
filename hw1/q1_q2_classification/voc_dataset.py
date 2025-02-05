@@ -107,7 +107,7 @@ class VOCDataset(Dataset):
         # in line 46 in simple_cnn.py
         ######################################################################
         augmentations = [
-            transforms.CenterCrop(size=(224, 224)),
+            transforms.CenterCrop(size=self.size),
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(degrees=90),
         ]
