@@ -109,7 +109,7 @@ class VOCDataset(Dataset):
         augmentations = [
             transforms.CenterCrop(size=self.size),
             transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(degrees=90),
+            transforms.RandomRotation(degrees=10),
         ]
         return augmentations
         ######################################################################
@@ -130,7 +130,7 @@ class VOCDataset(Dataset):
         img = Image.open(fpath)
 
         trans = transforms.Compose([
-            transforms.Resize(self.size),
+            transforms.Resize((self.size, self.size)),
             *self.get_random_augmentations(),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.457, 0.407], std=[0.5, 0.5, 0.5]),
