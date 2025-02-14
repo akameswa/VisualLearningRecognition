@@ -23,6 +23,8 @@ class ResNet(nn.Module):
         return x
 
 if __name__ == "__main__":
+    # python q1_q2_classification/tsne_q2.py 
+
     np.random.seed(0)
     torch.manual_seed(0)
     random.seed(0)
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     with torch.no_grad():
         for image, target, _ in test_loader:
             image = image.to(args.device)
-            feat = model(image)
+            feat = model(image).flatten(1)
             features.append(feat.cpu().numpy())
             labels.append(target.numpy())
 
