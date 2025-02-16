@@ -78,6 +78,14 @@ class DetectorBackboneWithFPN(nn.Module):
         # there are trainable weights inside it.
         # Add THREE lateral 1x1 conv and THREE output 3x3 conv layers.
         self.fpn_params = nn.ModuleDict()
+
+        self.fpn_params["c3_lateral"] = nn.Conv2d(in_channels=dummy_out_shapes[0][1][1], out_channels=out_channels, kernel_size=1, stride=1, padding=0)
+        self.fpn_params["c4_lateral"] = nn.Conv2d(in_channels=dummy_out_shapes[1][1][1], out_channels=out_channels, kernel_size=1, stride=1, padding=0)
+        self.fpn_params["c5_lateral"] = nn.Conv2d(in_channels=dummy_out_shapes[2][1][1], out_channels=out_channels, kernel_size=1, stride=1, padding=0)
+
+        self.fpn_params["p3_output"] = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
+        self.fpn_params["p4_output"] = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
+        self.fpn_params["p5_output"] = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -103,7 +111,14 @@ class DetectorBackboneWithFPN(nn.Module):
         # HINT: Use `F.interpolate` to upsample FPN features.                #
         ######################################################################
 
-        pass
+        p3 = self.fpn_params["p3_output"](self.fpn_params["c3_lateral"](backbone_feats["c3"]))
+        p4 = self.fpn_params["p4_output"](self.fpn_params["c4_lateral"](backbone_feats["c4"]))
+        p5 = self.fpn_params["p5_output"](self.fpn_params["c5_lateral"](backbone_feats["c5"]))
+
+        fpn_feats["p5"] = p5
+        fpn_feats["p4"] = p4 + F.interpolate(p5, scale_factor=2, mode='nearest')
+        fpn_feats["p3"] = p3 + F.interpolate(p4, scale_factor=2, mode='nearest')
+
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -152,8 +167,13 @@ class FCOSPredictionNetwork(nn.Module):
         # Fill these.
         stem_cls = []
         stem_box = []
-        # Replace "pass" statement with your code
-        pass
+
+        stem_channels[-1] = in_channels
+        for i in range(len(stem_channels)):
+            stem_cls.append(nn.Conv2d(in_channels=stem_channels[i-1], out_channels=stem_channels[i], kernel_size=3, stride=1, padding=1))
+            stem_cls.append(nn.ReLU())
+            stem_box.append(nn.Conv2d(in_channels=stem_channels[i-1], out_channels=stem_channels[i], kernel_size=3, stride=1, padding=1))
+            stem_box.append(nn.ReLU())
 
         # Wrap the layers defined by student into a `nn.Sequential` module:
         self.stem_cls = nn.Sequential(*stem_cls)
@@ -175,9 +195,9 @@ class FCOSPredictionNetwork(nn.Module):
         ######################################################################
 
         # Replace these lines with your code, keep variable names unchanged.
-        self.pred_cls = None  # Class prediction conv
-        self.pred_box = None  # Box regression conv
-        self.pred_ctr = None  # Centerness conv
+        self.pred_cls = nn.Conv2d(stem_channels[-1], num_classes, kernel_size=3, padding=1)  # Class prediction conv
+        self.pred_box = nn.Conv2d(stem_channels[-1], 4, kernel_size=3, padding=1)  # Box regression conv
+        self.pred_ctr = nn.Conv2d(stem_channels[-1], 1, kernel_size=3, padding=1)  # Centerness conv
 
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -224,6 +244,15 @@ class FCOSPredictionNetwork(nn.Module):
         class_logits = {}
         boxreg_deltas = {}
         centerness_logits = {}
+        
+        for lvl, feat in feats_per_fpn_level.items():
+            cls = self.pred_cls(self.stem_cls(feat))
+            box = self.pred_box(self.stem_box(feat))
+            ctr = self.pred_ctr(self.stem_box(feat))
+
+            class_logits[lvl] = cls.reshape(cls.shape[0], cls.shape[1], -1).permute(0, 2, 1)
+            boxreg_deltas[lvl] = box.reshape(box.shape[0], box.shape[1], -1).permute(0, 2, 1)
+            centerness_logits[lvl] = ctr.reshape(ctr.shape[0], ctr.shape[1], -1).permute(0, 2, 1)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -249,10 +278,8 @@ class FCOS(nn.Module):
         # TODO: Initialize backbone and prediction network using arguments.  #
         ######################################################################
         # Feel free to delete these two lines: (but keep variable names same)
-        self.backbone = None
-        self.pred_net = None
-        # Replace "pass" statement with your code
-        pass
+        self.backbone = DetectorBackboneWithFPN(fpn_channels)
+        self.pred_net = FCOSPredictionNetwork(num_classes, fpn_channels, stem_channels)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -294,8 +321,8 @@ class FCOS(nn.Module):
         # logits, deltas, and centerness.                                    #
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        backbone_feats = None
-        pred_cls_logits, pred_boxreg_deltas, pred_ctr_logits = None, None, None
+        backbone_feats = self.backbone(images)
+        pred_cls_logits, pred_boxreg_deltas, pred_ctr_logits = self.pred_net(backbone_feats)
 
         ######################################################################
         # TODO: Get absolute co-ordinates `(xc, yc)` for every location in
@@ -305,7 +332,10 @@ class FCOS(nn.Module):
         # call the functions properly.
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        locations_per_fpn_level = None
+        shape_per_fpn_level = {}
+        for lvl, feat in backbone_feats.items():
+            shape_per_fpn_level[lvl] = feat.shape
+        locations_per_fpn_level = get_fpn_location_coords(shape_per_fpn_level, self.backbone.fpn_strides, device=images.device)
 
         ######################################################################
         #                           END OF YOUR CODE                         #
@@ -330,14 +360,15 @@ class FCOS(nn.Module):
         ######################################################################
         # List of dictionaries with keys {"p3", "p4", "p5"} giving matched
         # boxes for locations per FPN level, per image. Fill this list:
-        matched_gt_boxes = []
-        pass
-
-        # Calculate GT deltas for these matched boxes. Similar structure
-        # as `matched_gt_boxes` above. Fill this list:
-        matched_gt_deltas = []
-        # Replace "pass" statement with your code
-        pass
+        matched_gt_boxes, matched_gt_deltas = [], []
+        for gt_box in gt_boxes:
+            matched_gt_boxes.append(fcos_match_locations_to_gt(locations_per_fpn_level, self.backbone.fpn_strides, gt_box))
+        
+        for gt_box in matched_gt_boxes:
+            deltas = {}
+            for lvl, box in gt_box.items():
+                deltas[lvl] = fcos_get_deltas_from_locations(locations_per_fpn_level[lvl], box, self.backbone.fpn_strides[lvl])
+            matched_gt_deltas.append(deltas)
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -367,8 +398,23 @@ class FCOS(nn.Module):
         # positions to zero.
         ######################################################################
         # Feel free to delete this line: (but keep variable names same)
-        loss_cls, loss_box, loss_ctr = None, None, None
+        gt = torch.zeros_like(pred_cls_logits)
+        valid_mask = matched_gt_boxes[:,:,4] != -1
+        class_indices = matched_gt_boxes[:,:,4][valid_mask].to(torch.long)
+        gt[valid_mask, class_indices] = 1
 
+        # classification loss
+        loss_cls = sigmoid_focal_loss(pred_cls_logits, gt)
+        matched_gt_deltas = matched_gt_deltas.reshape(-1, 4)
+
+        # box loss
+        loss_box = 0.25 * F.l1_loss(pred_boxreg_deltas.reshape(-1, 4), matched_gt_deltas, reduction="none")
+        loss_box[matched_gt_deltas < 0] = 0.0
+        
+        # centerness loss
+        centerness = fcos_make_centerness_targets(matched_gt_deltas)
+        loss_ctr = F.binary_cross_entropy_with_logits(pred_ctr_logits.reshape(-1), centerness, reduction="none")
+        loss_ctr[centerness < 0] = 0.0
 
         ######################################################################
         #                            END OF YOUR CODE                        #
@@ -465,20 +511,26 @@ class FCOS(nn.Module):
             )
             # Step 1:
             # Replace "pass" statement with your code
-            pass
-            
+            level_pred_scores, level_pred_classes = torch.max(level_pred_scores, dim=1)
+
             # Step 2:
             # Replace "pass" statement with your code
-            pass
+            threshold = level_pred_scores > test_score_thresh
+            level_pred_scores = level_pred_scores[threshold]
+            level_pred_classes = level_pred_classes[threshold]
 
             # Step 3:
             # Replace "pass" statement with your code
-            pass
+            level_pred_boxes = fcos_apply_deltas_to_locations(level_deltas[threshold], level_locations[threshold], self.backbone.fpn_strides[level_name])
 
             # Step 4: Use `images` to get (height, width) for clipping.
             # Replace "pass" statement with your code
-            pass
-
+            height, width = images.shape[2], images.shape[3]
+            for level_pred_box in level_pred_boxes:
+                level_pred_box[0] = max(0, level_pred_box[0])
+                level_pred_box[1] = max(0, level_pred_box[1])
+                level_pred_box[2] = min(height, level_pred_box[2])
+                level_pred_box[3] = min(width, level_pred_box[3])
             ##################################################################
             #                          END OF YOUR CODE                      #
             ##################################################################
