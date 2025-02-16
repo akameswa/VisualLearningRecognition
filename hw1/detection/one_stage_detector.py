@@ -401,7 +401,8 @@ class FCOS(nn.Module):
         gt = torch.zeros_like(pred_cls_logits)
         valid_mask = matched_gt_boxes[:,:,4] != -1
         class_indices = matched_gt_boxes[:,:,4][valid_mask].to(torch.long)
-        gt[valid_mask, class_indices] = 1
+        batch_indices, location_indices = torch.where(valid_mask)
+        gt[batch_indices, location_indices, class_indices] = 1
 
         # classification loss
         loss_cls = sigmoid_focal_loss(pred_cls_logits, gt)
@@ -526,11 +527,12 @@ class FCOS(nn.Module):
             # Step 4: Use `images` to get (height, width) for clipping.
             # Replace "pass" statement with your code
             height, width = images.shape[2], images.shape[3]
-            for level_pred_box in level_pred_boxes:
-                level_pred_box[0] = max(0, level_pred_box[0])
-                level_pred_box[1] = max(0, level_pred_box[1])
-                level_pred_box[2] = min(height, level_pred_box[2])
-                level_pred_box[3] = min(width, level_pred_box[3])
+            clipped_boxes = level_pred_boxes.clone()
+            clipped_boxes[:, 0] = torch.clamp(level_pred_boxes[:, 0], min=0)  
+            clipped_boxes[:, 1] = torch.clamp(level_pred_boxes[:, 1], min=0)  
+            clipped_boxes[:, 2] = torch.clamp(level_pred_boxes[:, 2], max=width)  
+            clipped_boxes[:, 3] = torch.clamp(level_pred_boxes[:, 3], max=height) 
+            level_pred_boxes = clipped_boxes 
             ##################################################################
             #                          END OF YOUR CODE                      #
             ##################################################################
