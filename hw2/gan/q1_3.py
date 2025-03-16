@@ -17,7 +17,10 @@ def compute_discriminator_loss(
     # Do not use discrim_interp, interp, lamb. They are placeholders
     # for Q1.5.
     ##################################################################
-    loss = None
+    bce = torch.nn.BCEWithLogitsLoss()
+    preds = torch.cat([discrim_real, discrim_fake]).to(discrim_real.device)
+    targets = torch.cat([torch.ones_like(discrim_real), torch.zeros_like(discrim_fake)]).to(discrim_real.device)
+    loss = bce(preds, targets)
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
@@ -28,7 +31,8 @@ def compute_generator_loss(discrim_fake):
     ##################################################################
     # TODO 1.3: Implement GAN loss for the generator.
     ##################################################################
-    loss = None
+    bce = torch.nn.BCEWithLogitsLoss()
+    loss = bce(discrim_fake, torch.ones_like(discrim_fake).to(discrim_fake.device))
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
