@@ -1,0 +1,30 @@
+(vlr_hw2) (base) exouser@learning:~/akameswa/generative-modeling/vae$ python train.py --log_dir vae_latent_beta_.8 --loss_mode vae --latent_size 1024 --target_beta_val 0.8
+Files already downloaded and verified
+epoch 0
+epoch 1
+epoch 2
+epoch 3
+epoch 4
+4 {'recon_loss': 185.1199, 'kl_loss': 67.36264}
+4 {'recon_loss': 176.92969, 'kl_loss': 68.12181}
+epoch 5
+epoch 6
+epoch 7
+epoch 8
+epoch 9
+9 {'recon_loss': 142.00525, 'kl_loss': 65.967186}
+9 {'recon_loss': 143.12732, 'kl_loss': 64.72005}
+epoch 10
+epoch 11
+epoch 12
+epoch 13
+epoch 14
+14 {'recon_loss': 129.68735, 'kl_loss': 68.876015}
+14 {'recon_loss': 128.47665, 'kl_loss': 69.54331}
+epoch 15
+epoch 16
+epoch 17
+epoch 18
+epoch 19
+19 {'recon_loss': 122.99992, 'kl_loss': 70.6478}
+19 {'recon_loss': 124.68779, 'kl_loss': 69.62217}
