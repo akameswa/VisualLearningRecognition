@@ -15,6 +15,9 @@ def get_fid(gen, dataset_name, dataset_resolution, z_dimension, batch_size, num_
     # Note: The output must be in the range [0, 255]!
     ##################################################################
     gen_fn = None
+    def gen_fn(z):
+        x = gen.sample_given_z(z, (batch_size, gen.channels, dataset_resolution, dataset_resolution))
+        return ((x - x.min()) / (x.max() - x.min()) * 255).clip(0, 255)
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
