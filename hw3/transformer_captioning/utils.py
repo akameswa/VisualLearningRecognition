@@ -125,3 +125,18 @@ def image_from_url(url):
         print("URL Error: ", e.reason, url)
     except urllib.error.HTTPError as e:
         print("HTTP Error: ", e.code, url)
+
+def image_from_path(img_path):
+    """
+    Read an image from a local file path. Returns a numpy array with the pixel data.
+    """
+    if not os.path.exists(img_path):
+        print("File not found: ", img_path)
+        return None
+    
+    try:
+        img = imread(img_path)
+        return img
+    except Exception as e:
+        print("Error reading image: ", e, img_path)
+        return None
