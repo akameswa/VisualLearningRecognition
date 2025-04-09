@@ -49,6 +49,8 @@ def vis_imgs(split):
     data = {'train': train_dataset.data, 'val': val_dataset.data}[split]
     loader = {'train': train_dataloader, 'val': val_dataloader}[split]
     num_imgs = 0 
+    img_dir = 'hw3/transformer_captioning/sample_train_imgs/'  
+
     for batch in loader:
       features, gt_captions, idxs = batch
       urls = data["%s_urls" % split][idxs]
@@ -58,7 +60,10 @@ def vis_imgs(split):
       sample_captions = decode_captions(sample_captions, transformer.idx_to_word)
       
       for gt_caption, sample_caption, url in zip(gt_captions, sample_captions, urls):
-          img = image_from_url(url)
+        #   img = image_from_url(url)
+          img_filename = os.path.basename(url)
+          img_path = os.path.join(img_dir, img_filename)
+          img = image_from_path(img_path)
           # Skip missing URLs.
           if img is not None: 
             plt.imshow(img)            
@@ -70,4 +75,4 @@ def vis_imgs(split):
       return 
 
 vis_imgs('train')
-vis_imgs('val')
+# vis_imgs('val')
