@@ -49,9 +49,8 @@ class Trainer:
 
         
         # TODO - Compute cross entropy loss between predictions and labels. 
-        loss = None
-        
-
+        criterion = torch.nn.CrossEntropyLoss()
+        loss = criterion(predictions, labels)
         return loss
 
     def train(self):
