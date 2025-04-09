@@ -1,0 +1,10 @@
+(epoch 10 / 100) loss: 3.915445
+(epoch 20 / 100) loss: 3.233652
+(epoch 30 / 100) loss: 2.799821
+(epoch 40 / 100) loss: 2.418825
+(epoch 50 / 100) loss: 2.117112
+(epoch 60 / 100) loss: 1.768952
+(epoch 70 / 100) loss: 1.581607
+(epoch 80 / 100) loss: 1.226280
+(epoch 90 / 100) loss: 1.007752
+(epoch 100 / 100) loss: 0.776759
