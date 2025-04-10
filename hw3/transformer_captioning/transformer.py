@@ -70,9 +70,9 @@ class MultiHeadAttentionLayer(AttentionLayer):
         #project query, key and value
         #after projection, split the embedding across num_heads
         #eg - expected shape for value is (N, H, T, D/H)
-        query = self.query_proj(query).view(N, S, H, D // H).transpose(1, 2)
-        key = self.key_proj(key).view(N, T, H, D // H).transpose(1, 2)
-        value = self.value_proj(value).view(N, T, H, D // H).transpose(1, 2)
+        query = self.query_proj(query).reshape(N, S, H, D // H).permute(0, 2, 1, 3)
+        key = self.key_proj(key).reshape(N, T, H, D // H).permute(0, 2, 1, 3)
+        value = self.value_proj(value).reshape(N, T, H, D // H).permute(0, 2, 1, 3)
 
         #compute dot-product attention separately for each head. Don't forget the scaling value!
         #Expected shape of dot_product is (N, H, S, T)
@@ -91,7 +91,7 @@ class MultiHeadAttentionLayer(AttentionLayer):
         y = y @ value  
 
         # concat embeddings from different heads, and project
-        output = y.transpose(1, 2).contiguous().view(N, S, D)
+        output = y.permute(0, 2, 1, 3).reshape(N, S, D)
         output = self.head_proj(output)
         return output
 
@@ -231,8 +231,8 @@ class TransformerDecoder(nn.Module):
         # This mask is multiplicative
         # setting mask[i,j] = 0 means jth element of the sequence is not used 
         # to predict the ith element of the sequence.
-        mask = torch.ones((_len, _len), device=self.device)
-        mask = torch.tril(mask)
+        indices = torch.arange(_len, device=self.device)
+        mask = (indices.unsqueeze(0) >= indices.unsqueeze(1)).float()
         return mask
                                       
     def forward(self, features, captions):
